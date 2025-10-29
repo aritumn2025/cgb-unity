@@ -30,3 +30,5 @@ docker run --rm `
   -v ${PWD}/build:/workspace/build `
   cgb-unity-builder
 ```
+
+> **ヒント**: 別の UnityCI イメージを利用したい場合は、`docker build` 時に `--build-arg UNITYCI_IMAGE=unityci/editor:<tag>` を指定するか、`UNITYCI_IMAGE=unityci/editor:<tag> ./scripts/build-windows.sh` のように環境変数を渡してください。

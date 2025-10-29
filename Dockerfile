@@ -1,4 +1,5 @@
-FROM unityci/editor:ubuntu-6000.0.41f1-windows-il2cpp-3
+ARG UNITYCI_IMAGE=unityci/editor:windows-6000.0.41f1-windows-il2cpp-3
+FROM ${UNITYCI_IMAGE}
 
 ENV UNITY_LICENSE_FILE=/root/.local/share/unity3d/Unity/Unity_lic.ulf \
     PROJECT_PATH=/workspace/unity/aritamR7 \
