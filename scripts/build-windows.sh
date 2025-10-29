@@ -10,10 +10,13 @@ BUILD_ARGS=()
 if [[ -n "${UNITYCI_IMAGE:-}" ]]; then
   BUILD_ARGS+=("--build-arg" "UNITYCI_IMAGE=${UNITYCI_IMAGE}")
 fi
+if [[ -n "${UNITY_VERSION:-}" ]]; then
+  BUILD_ARGS+=("--build-arg" "UNITY_VERSION=${UNITY_VERSION}")
+fi
 
 mkdir -p "${BUILD_CACHE_DIR}"
 
-docker build "${REPO_ROOT}" -t "${IMAGE_NAME}" "${BUILD_ARGS[@]}"
+docker build -t "${IMAGE_NAME}" "${BUILD_ARGS[@]}" "${REPO_ROOT}"
 
 docker run --rm \
   -v "${REPO_ROOT}:/workspace" \

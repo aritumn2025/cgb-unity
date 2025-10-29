@@ -20,6 +20,7 @@ Unity ライセンスファイル `.Unity_lic.ulf` を使用して、Windows (x8
 
 - ビルド成果物は `build/StandaloneWindows64` に配置されます
 - Unity ログは `build/unity.log` で確認できます
+- 初回ビルド時は Windows 用モジュールのダウンロードが入るため時間がかかります
 
 PowerShell から直接実行する場合は、以下のコマンドでも同じ結果を得られます。
 
@@ -31,4 +32,4 @@ docker run --rm `
   cgb-unity-builder
 ```
 
-> **ヒント**: 別の UnityCI イメージを利用したい場合は、`docker build` 時に `--build-arg UNITYCI_IMAGE=unityci/editor:<tag>` を指定するか、`UNITYCI_IMAGE=unityci/editor:<tag> ./scripts/build-windows.sh` のように環境変数を渡してください。
+> **ヒント**: 別の UnityCI イメージや Unity バージョンを利用したい場合は、`docker build` 時に `--build-arg UNITYCI_IMAGE=unityci/editor:<tag>` や `--build-arg UNITY_VERSION=<version>` を指定するか、`UNITYCI_IMAGE=unityci/editor:<tag> UNITY_VERSION=<version> ./scripts/build-windows.sh` のように環境変数を渡してください。
