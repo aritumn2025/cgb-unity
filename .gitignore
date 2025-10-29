@@ -1,0 +1,23 @@
+# Unity project artifacts
+unity/aritamR7/Library/
+unity/aritamR7/Logs/
+unity/aritamR7/Temp/
+unity/aritamR7/obj/
+unity/aritamR7/UserSettings/
+unity/aritamR7/MemoryCaptures/
+unity/aritamR7/Builds/
+unity/aritamR7/.vs/
+unity/aritamR7/.vsconfig
+unity/aritamR7/*.csproj
+unity/aritamR7/*.sln
+unity/aritamR7/*.user
+unity/aritamR7/*.csproj.user
+unity/aritamR7/Packages/packages-lock.tmp
+
+# Unity build outputs
+unity/aritamR7_BurstDebugInformation_DoNotShip/
+unity/aritamR7_Data/
+unity/D3D12/
+unity/MonoBleedingEdge/
+unity/UnityCrashHandler64.exe
+unity/UnityPlayer.dll
