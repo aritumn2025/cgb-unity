@@ -355,7 +355,7 @@ namespace Cgb.Unity
 
             foreach (var message in pending)
             {
-                Debug.Log($"[HubGameClient] {message}");
+                UnityEngine.Debug.Log($"[HubGameClient] {message}");
             }
         }
 
