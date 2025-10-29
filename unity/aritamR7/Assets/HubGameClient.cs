@@ -491,13 +491,13 @@ namespace Cgb.Unity
             }
         }
 
-        private readonly struct ControllerState
+        private struct ControllerState
         {
-            public float AxisX { get; init; }
-            public float AxisY { get; init; }
-            public bool ButtonA { get; init; }
-            public long ControllerTimestamp { get; init; }
-            public double LastUpdateSeconds { get; init; }
+            public float AxisX;
+            public float AxisY;
+            public bool ButtonA;
+            public long ControllerTimestamp;
+            public double LastUpdateSeconds;
         }
 
         public readonly struct ControllerSnapshot

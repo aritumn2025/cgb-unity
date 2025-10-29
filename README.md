@@ -13,19 +13,21 @@ Windows (x86_64) 向けビルドを Docker 上で実行できる。
 
 ## ライセンス申請ファイル作成
 
-```bash
-docker run --rm \
-  -e UNITY_EMAIL="example@example.com" \
-  -e UNITY_PASSWORD="..." \
-  unityci/editor:ubuntu-6000.0.41f1-windows-mono-3.2.0 \
-  unity-editor \
-    -batchmode -nographics -quit \
-    -logFile - \
-    -manualLicenseFile /tmp/Unity_lic.xml
-```
+- 次を実行し、`build/Unity_v6000.0.41f1.alf` を生成する
+- ログは `build/` に残る
 
-- もしくは GUI 認証が使えない場合は、-serial と -username/-password を指定して実行し、
-  出力ログ内にある .alf（要求ファイル）パスを確認する。
+```bash
+mkdir -p build/
+docker run --rm \
+  -v "${PWD}/build:/root" \
+  unityci/editor:ubuntu-6000.0.41f1-windows-mono-3.2.0 \
+  bash -lc '
+    unity-editor \
+      -batchmode -nographics -quit \
+      -createManualActivationFile \
+      -logFile /root/unity-manual.log && \
+    cp /Unity_v6000.0.41f1.alf /root/Unity_v6000.0.41f1.alf'
+```
 
 ## Unity ID でライセンス発行
 

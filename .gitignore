@@ -24,4 +24,7 @@ unity/UnityPlayer.dll
 
 # License
 .Unity_lic.ulf
+
+# Docker build artifacts
 .docker-config/
+build/
