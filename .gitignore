@@ -24,3 +24,4 @@ unity/UnityPlayer.dll
 
 # License
 .Unity_lic.ulf
+.docker-config/

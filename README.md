@@ -4,25 +4,52 @@
 
 ## Docker での Windows 版ビルド
 
-Unity ライセンスファイル `.Unity_lic.ulf` を使用して、Windows (x86_64) 向けビルドを Docker 上で実行できます。
-デフォルトの Dockerfile は `unityci/editor:ubuntu-6000.0.41f1-windows-mono-3.2.0` を利用し、Mono バックエンドでの Windows ビルドに対応しています。
+Unity ライセンスファイル `.Unity_lic.ulf` を使用して、
+Windows (x86_64) 向けビルドを Docker 上で実行できる。
+デフォルトの Dockerfile は `unityci/editor:ubuntu-6000.0.41f1-windows-mono-3.2.0`
+を利用し、Mono バックエンドでの Windows ビルドに対応している。
 
-### 前提条件
+# Useage
 
-- Docker Desktop など Docker CLI が利用できる環境（Windows 11 で動作確認済み）
-- `.Unity_lic.ulf` がリポジトリ直下に配置されていること
+## ライセンス申請ファイル作成
 
-### ビルド手順
+```bash
+docker run --rm \
+  -e UNITY_EMAIL="example@example.com" \
+  -e UNITY_PASSWORD="..." \
+  unityci/editor:ubuntu-6000.0.41f1-windows-mono-3.2.0 \
+  unity-editor \
+    -batchmode -nographics -quit \
+    -logFile - \
+    -manualLicenseFile /tmp/Unity_lic.xml
+```
+
+- もしくは GUI 認証が使えない場合は、-serial と -username/-password を指定して実行し、
+  出力ログ内にある .alf（要求ファイル）パスを確認する。
+
+## Unity ID でライセンス発行
+
+- 生成された `.alf` または `.xml` を Unity にアップロード
+  (https://license.unity3d.com/manual) し、CI 用マシン向けの .ulf を取得
+  - 関連: https://github.com/game-ci/documentation/issues/408
+  - 関連: https://zenn.dev/hirosukekayaba/articles/067693ad146d18
+
+## ライセンスファイル差し替え
+
+新たな `.Unity_lic.ulf` をリポジトリ直下に配置し直したうえで、
+`./scripts/build-windows.sh` を再実行
+
+## ビルド
 
 1. リポジトリ直下で `chmod +x scripts/build-windows.sh` を実行（初回のみ）
 2. `./scripts/build-windows.sh` を実行
 
-### 出力
+## 出力
 
 - ビルド成果物は `build/StandaloneWindows64` に配置されます
 - Unity ログは `build/unity.log` で確認できます
 
-PowerShell から直接実行する場合は、以下のコマンドでも同じ結果を得られます。
+PowerShell から直接実行する場合は、以下のコマンドでも同じ結果を得られる
 
 ```powershell
 docker build -t cgb-unity-builder .
@@ -32,4 +59,7 @@ docker run --rm `
   cgb-unity-builder
 ```
 
-> **ヒント**: 別の UnityCI イメージを利用したい場合は、`docker build` 時に `--build-arg UNITYCI_IMAGE=unityci/editor:<tag>` を指定するか、`UNITYCI_IMAGE=unityci/editor:<tag> ./scripts/build-windows.sh` のように環境変数を渡してください。
+## 補足: 別の UnityCI イメージを利用したい場合
+
+- `docker build` 時に `--build-arg UNITYCI_IMAGE=unityci/editor:<tag>` を指定
+- `UNITYCI_IMAGE=unityci/editor:<tag> ./scripts/build-windows.sh` のように環境変数を渡す
