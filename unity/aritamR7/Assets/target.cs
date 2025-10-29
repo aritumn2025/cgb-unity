@@ -1,4 +1,3 @@
-using Cgb.Unity;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -16,7 +15,6 @@ public class target : MonoBehaviour{
     public int playerFind = 1;
     public int playerScore = 0;
     public bool fewScore = false;
-    private const float AxisDeadzone = 0.25f;
     //オブジェクト取得
     [Header("自機")]public GameObject player;
     [Header("銃弾")]public GameObject []bullet = new GameObject[5];
@@ -64,10 +62,6 @@ public class target : MonoBehaviour{
     }
 
     private void moving(){
-        if (TryApplyRemoteInput()){
-            return;
-        }
-
         switch (ptype){
             case Ptype.Player1:
                 if (Input.GetKey(KeyCode.Alpha1)) KeySettings(0);
@@ -108,50 +102,7 @@ public class target : MonoBehaviour{
                 cpuMode();
                 break;
         }
-
-    }
-
-    private bool TryApplyRemoteInput(){
-        var id = ResolveControllerId();
-        if (string.IsNullOrEmpty(id))
-            return false;
-
-        var client = HubGameClient.Instance;
-        if (client == null)
-            return false;
-
-        if (!client.TryGetState(id, out var snapshot) || !snapshot.IsConnected)
-            return false;
-
-        if (snapshot.ButtonA)
-            KeySettings(0);
-
-        if (snapshot.AxisY > AxisDeadzone)
-            KeySettings(1);
-        else if (snapshot.AxisY < -AxisDeadzone)
-            KeySettings(2);
-
-        if (snapshot.AxisX < -AxisDeadzone)
-            KeySettings(3);
-        else if (snapshot.AxisX > AxisDeadzone)
-            KeySettings(4);
-
-        return true;
-    }
-
-    private string ResolveControllerId(){
-        switch (ptype){
-            case Ptype.Player1:
-                return "p1";
-            case Ptype.Player2:
-                return "p2";
-            case Ptype.Player3:
-                return "p3";
-            case Ptype.Player4:
-                return "p4";
-            default:
-                return string.Empty;
-        }
+        
     }
 
     private void KeySettings(int i){
