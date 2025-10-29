@@ -1,6 +1,8 @@
 # cgb-unity
 
 - シューティングゲーム「協力！ゴースト爆撃ズ」（略: CGB）の unity （フロントエンド）
+- C# 8
+- unity 6000.0.41f1
 
 ## Docker での Windows 版ビルド
 
