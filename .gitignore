@@ -21,3 +21,6 @@ unity/D3D12/
 unity/MonoBleedingEdge/
 unity/UnityCrashHandler64.exe
 unity/UnityPlayer.dll
+
+# License
+.Unity_lic.ulf
