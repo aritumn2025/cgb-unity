@@ -10,9 +10,6 @@ BUILD_ARGS=()
 if [[ -n "${UNITYCI_IMAGE:-}" ]]; then
   BUILD_ARGS+=("--build-arg" "UNITYCI_IMAGE=${UNITYCI_IMAGE}")
 fi
-if [[ -n "${UNITY_VERSION:-}" ]]; then
-  BUILD_ARGS+=("--build-arg" "UNITY_VERSION=${UNITY_VERSION}")
-fi
 
 mkdir -p "${BUILD_CACHE_DIR}"
 
