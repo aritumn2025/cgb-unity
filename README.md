@@ -6,7 +6,7 @@
 
 ## Hub 連携
 
-- `cgb-ctrl-hub` を `ws://<Hubのホスト>:8765/ws` で起動しておくと、ゲーム起動時に `role: game` として自動登録されます。
+- `cgb-io-hub` を `ws://<Hubのホスト>:8765/ws` で起動しておくと、ゲーム起動時に `role: game` として自動登録されます。
 - 接続先は環境変数 `CGB_HUB_URL` で上書きできます。
   - 例: `CGB_HUB_URL=ws://192.168.0.10:8765/ws ./unity/aritamR7/aritamR7.exe`
 - Hub に接続済みの Web コントローラから届く `p1`〜`p4` の入力がゲーム内ターゲットへ反映されます。
