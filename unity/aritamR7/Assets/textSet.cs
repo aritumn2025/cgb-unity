@@ -1,23 +1,31 @@
 using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine.UI;
 using TMPro;
 
-public class textSet : MonoBehaviour{
-
+public class textSet : MonoBehaviour
+{
     public TMP_Text scoreText;
     public GameObject Ptarget;
     public int num;
     private target Pscr;
+    private ScoreManager sm;
 
-    void Start(){
+    void Start()
+    {
         scoreText = GetComponent<TMP_Text>();
-        scoreText.text = "score:0";
         Pscr = Ptarget.GetComponent<target>();
+        sm = FindFirstObjectByType<ScoreManager>();
     }
 
-    void FixedUpdate(){
-        scoreText.text = "player"+ num.ToString() +"\n"+ Pscr.playerScore.ToString();
+    void FixedUpdate()
+    {
+        if (scoreText == null || Pscr == null)
+        {
+            return;
+        }
+
+        int slotIndex = Mathf.Clamp(num - 1, 0, 3);
+        string fallback = "player" + (slotIndex + 1);
+        string displayName = sm != null ? sm.GetUserName(slotIndex, fallback) : fallback;
+        scoreText.text = displayName + "\n" + Pscr.playerScore.ToString();
     }
 }

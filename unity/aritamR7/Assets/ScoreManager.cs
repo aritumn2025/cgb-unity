@@ -1,70 +1,105 @@
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class ScoreManager : MonoBehaviour{
-
+public class ScoreManager : MonoBehaviour
+{
     public static ScoreManager instance = null;
 
-    //ƒ†[ƒUİ’è
-    public int[]user_ID = new int[4]; //0‚ÌCPU‘€ì
-    public int[]personality = new int [4]; //«Ši
+    // ãƒ¦ãƒ¼ã‚¶ãƒ¼è¨­å®š
+    public int[] user_ID = new int[4]; // 0 ã®æ™‚ã¯ CPU æ‰±ã„
+    public int[] personality = new int[4];
+    public string[] userIdString = new string[4];
+    public string[] userName = new string[4];
 
-    //ƒXƒRƒAİ’è
-    public int[]befor_Score = new int[4];
-    public int[]after_Score = new int[4];
+    // ã‚¹ã‚³ã‚¢è¨­å®š
+    public int[] befor_Score = new int[4];
+    public int[] after_Score = new int[4];
     public int allScore = 0;
 
-    private void Awake(){
-        if (instance == null){
+    private void Awake()
+    {
+        if (instance == null)
+        {
             instance = this;
-            DontDestroyOnLoad(this.gameObject);
+            DontDestroyOnLoad(gameObject);
         }
-        else{
-            Destroy(this.gameObject);
-        }
-    }
-
-
-    void Start(){
-        
-    }
-
-    
-    void FixedUpdate(){
-        for(int i=0;i<4;i++){
-            if(after_Score[i]>1024)
-               after_Score[i]=1024;
+        else
+        {
+            Destroy(gameObject);
         }
     }
 
+    void Start()
+    {
+    }
 
-    public void ScoreReset(){
-        for (int i = 0; i < 4; i++){
+    void FixedUpdate()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (after_Score[i] > 1024)
+            {
+                after_Score[i] = 1024;
+            }
+        }
+    }
+
+    public void ScoreReset()
+    {
+        for (int i = 0; i < 4; i++)
+        {
             user_ID[i] = 0;
             personality[i] = 0;
+            userIdString[i] = string.Empty;
+            userName[i] = string.Empty;
             befor_Score[i] = 0;
-            allScore = 0;
             after_Score[i] = 0;
         }
+        allScore = 0;
     }
 
+    public void ApplyAssignment(int index, string userId, string name, int personaId)
+    {
+        if (index < 0 || index >= 4)
+        {
+            return;
+        }
 
-    //Setting‰æ–Ê‚ÅŒÄ‚Ño‚µ
-    public void userInput(){
-        //user_ID[]‚É“ü—Í
-        //personality[]‚É“ü—Í
+        bool assigned = !string.IsNullOrWhiteSpace(userId);
+        user_ID[index] = assigned ? 1 : 0;
+        userIdString[index] = assigned ? userId.Trim() : string.Empty;
+        userName[index] = assigned ? (name ?? string.Empty).Trim() : string.Empty;
+        personality[index] = assigned ? personaId : 0;
     }
 
+    public string GetUserId(int index)
+    {
+        if (index < 0 || index >= 4)
+        {
+            return string.Empty;
+        }
+        return userIdString[index] ?? string.Empty;
+    }
 
-    //ƒQ[ƒ€I—¹ŒÄ‚Ño‚µ
-    public void userOutput(){
+    public string GetUserName(int index, string fallback)
+    {
+        if (index < 0 || index >= 4)
+        {
+            return fallback;
+        }
+        var name = userName[index];
+        return !string.IsNullOrWhiteSpace(name) ? name : fallback;
+    }
 
-        /*ƒT[ƒo[‚Éî•ñ‚ğ‘—‚é*/
-        //user_ID‚ªƒ†[ƒU‚ÌID
-        //after_Score‚ªÅIƒXƒRƒA
+    // Setting ã‚·ãƒ¼ãƒ³ã‹ã‚‰ã®å…¥åŠ›ã‚’å—ã‘å–ã‚‹ãƒ—ãƒ¬ãƒ¼ã‚¹ãƒ›ãƒ«ãƒ€ãƒ¼
+    public void userInput()
+    {
+        // user_ID[] / personality[] ã«è¨­å®šã™ã‚‹
+    }
 
-        //user_ID=0‚Ì‚ÍœŠO‚ğ„§
-
-
+    // ã‚²ãƒ¼ãƒ çµ‚äº†æ™‚ã«ã‚µãƒ¼ãƒãƒ¼ã¸é€ã‚‹ãƒ—ãƒ¬ãƒ¼ã‚¹ãƒ›ãƒ«ãƒ€ãƒ¼
+    public void userOutput()
+    {
+        // userIdString / after_Score ã‚’é€ä¿¡ã™ã‚‹
     }
 }
