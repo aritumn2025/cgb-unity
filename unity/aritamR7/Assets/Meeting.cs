@@ -4,13 +4,11 @@ using UnityEngine.SceneManagement;
 
 public class Meeting : MonoBehaviour
 {
-    private ScoreManager sm;
     public float waitTime = 99.5f;
     private TMP_Text timeText;
 
     void Start()
     {
-        sm = FindFirstObjectByType<ScoreManager>();
         timeText = GetComponent<TMP_Text>();
     }
 
@@ -24,25 +22,31 @@ public class Meeting : MonoBehaviour
         if (Input.GetKey(KeyCode.A)) waitTime -= 0.1f;
         if (Input.GetKey(KeyCode.Z)) waitTime -= 0.1f;
 
+        var assignments = HubGameService.GetAssignments();
         bool accelerate = false;
-        if (sm != null)
+        int connectedCount = 0;
+        foreach (var assignment in assignments)
         {
-            for (int i = 0; i < 4; i++)
+            if (!assignment.Connected || !assignment.HasUser)
             {
-                if (string.IsNullOrEmpty(sm.GetUserId(i)))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                string slotId = "p" + (i + 1);
-                HubGameClient.ControllerState state;
-                if (HubGameClient.TryGetState(slotId, out state))
+            connectedCount++;
+
+            string slotId = assignment.SlotId;
+            if (string.IsNullOrWhiteSpace(slotId))
+            {
+                continue;
+            }
+
+            HubGameClient.ControllerState state;
+            if (HubGameClient.TryGetState(slotId, out state))
+            {
+                if (Mathf.Abs(state.Axes.x) > 0.1f || Mathf.Abs(state.Axes.y) > 0.1f || state.ButtonA)
                 {
-                    if (Mathf.Abs(state.Axes.x) > 0.1f || Mathf.Abs(state.Axes.y) > 0.1f || state.ButtonA)
-                    {
-                        accelerate = true;
-                        break;
-                    }
+                    accelerate = true;
+                    break;
                 }
             }
         }
@@ -52,22 +56,7 @@ public class Meeting : MonoBehaviour
             waitTime -= delta * 9f;
         }
 
-        bool allReady = true;
-        if (sm != null)
-        {
-            for (int i = 0; i < 4; i++)
-            {
-                if (string.IsNullOrEmpty(sm.GetUserId(i)))
-                {
-                    allReady = false;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            allReady = false;
-        }
+        bool allReady = connectedCount >= 4;
 
         if (waitTime <= 0f || allReady)
         {

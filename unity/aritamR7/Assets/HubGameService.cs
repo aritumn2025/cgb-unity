@@ -23,35 +23,11 @@ public class HubGameService : MonoBehaviour
         }
     }
 
-    private IEnumerator FetchLobbyOnce()
-    {
-        string url = BuildUrl("/api/game/lobby");
-        using (UnityWebRequest request = UnityWebRequest.Get(url))
-        {
-            request.timeout = 5;
-            yield return request.SendWebRequest();
-
-            if (request.result != UnityWebRequest.Result.Success)
-            {
-                yield break;
-            }
-
-            string json = request.downloadHandler.text;
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                yield break;
-            }
-
-            ApplyLobbyJson(json);
-        }
-    }
-
     private static HubGameService instance;
 
     [SerializeField] private float assignmentPollInterval = 1.0f;
 
     private readonly Dictionary<string, Assignment> assignments = new Dictionary<string, Assignment>(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<int, LobbySlotState> lobbySlots = new Dictionary<int, LobbySlotState>();
 
     private Coroutine pollRoutine;
     private string apiBaseUrl = "https://game.rayfiyo.com";
@@ -121,7 +97,6 @@ public class HubGameService : MonoBehaviour
         while (true)
         {
             yield return FetchAssignmentsOnce();
-            yield return FetchLobbyOnce();
             float delay = Mathf.Max(0.5f, assignmentPollInterval);
             yield return new WaitForSeconds(delay);
         }
@@ -233,21 +208,10 @@ public class HubGameService : MonoBehaviour
         {
             string slotId = "p" + i;
             Assignment assignment;
-            if (assignments.TryGetValue(slotId, out assignment) && assignment.HasUser)
+            if (assignments.TryGetValue(slotId, out assignment) && assignment.HasUser && assignment.Connected)
             {
                 int persona = ParsePersonality(assignment.Personality);
                 manager.ApplyAssignment(i - 1, assignment.UserId, assignment.Name, persona);
-                continue;
-            }
-
-            LobbySlotState state;
-            if (lobbySlots.TryGetValue(i, out state) && state.HasUser)
-            {
-                manager.ApplyAssignment(i - 1, state.UserId, state.Name, state.Personality);
-            }
-            else
-            {
-                manager.ApplyAssignment(i - 1, string.Empty, string.Empty, 0);
             }
         }
     }
@@ -337,44 +301,12 @@ public class HubGameService : MonoBehaviour
         return assignments.TryGetValue(canonical, out assignment);
     }
 
-    private bool TryGetLobbyName(string slotId, out string name)
-    {
-        name = null;
-        int index;
-        if (string.IsNullOrWhiteSpace(slotId) || slotId.Length < 2)
-        {
-            return false;
-        }
-
-        if (!int.TryParse(slotId.Substring(1), out index))
-        {
-            return false;
-        }
-
-        LobbySlotState state;
-        if (!lobbySlots.TryGetValue(index, out state) || !state.HasUser)
-        {
-            return false;
-        }
-
-        name = string.IsNullOrWhiteSpace(state.Name) ? state.UserId : state.Name;
-        return true;
-    }
-
     public static string GetDisplayName(string slotId, string fallback)
     {
         Assignment assignment;
-        if (TryGetAssignment(slotId, out assignment) && !string.IsNullOrWhiteSpace(assignment.Name))
+        if (TryGetAssignment(slotId, out assignment) && assignment.HasUser && assignment.Connected && !string.IsNullOrWhiteSpace(assignment.Name))
         {
             return assignment.Name;
-        }
-        if (instance != null)
-        {
-            string lobbyName;
-            if (instance.TryGetLobbyName(slotId, out lobbyName))
-            {
-                return lobbyName;
-            }
         }
         return fallback;
     }
@@ -394,7 +326,6 @@ public class HubGameService : MonoBehaviour
         resultSubmitted = false;
         resultSubmissionInFlight = false;
         gameStartTimeUtc = null;
-        lobbySlots.Clear();
         ScoreManager manager = ScoreManager.instance ?? UnityEngine.Object.FindObjectOfType<ScoreManager>();
         if (manager != null)
         {
@@ -482,6 +413,7 @@ public class HubGameService : MonoBehaviour
     private GameResultRequest BuildResultPayload(IReadOnlyDictionary<string, int> scores)
     {
         List<ResultEntry> entries = new List<ResultEntry>(scores.Count);
+        ScoreManager manager = ScoreManager.instance ?? UnityEngine.Object.FindObjectOfType<ScoreManager>();
 
         foreach (KeyValuePair<string, int> kvp in scores)
         {
@@ -492,40 +424,65 @@ public class HubGameService : MonoBehaviour
             }
 
             Assignment assignment;
-            if (assignments.TryGetValue(slotId, out assignment) && assignment.HasUser)
+            if (!assignments.TryGetValue(slotId, out assignment) || !assignment.HasUser)
             {
-                entries.Add(new ResultEntry
-                {
-                    slotId = slotId,
-                    score = kvp.Value,
-                    name = assignment.Name,
-                });
                 continue;
             }
 
+            string entryName = assignment.Name;
+            string userId = assignment.UserId;
             int slotIndex;
-            if (!int.TryParse(slotId.Substring(1), out slotIndex))
+            if (slotId.Length > 1 && int.TryParse(slotId.Substring(1), out slotIndex))
+            {
+                slotIndex -= 1;
+            }
+            else
+            {
+                slotIndex = -1;
+            }
+            if (manager != null && slotIndex >= 0 && slotIndex < 4)
+            {
+                string resolvedId = manager.GetUserId(slotIndex);
+                if (!string.IsNullOrWhiteSpace(resolvedId))
+                {
+                    userId = resolvedId.Trim();
+                }
+                string resolvedName = manager.GetUserName(slotIndex, entryName ?? (userId ?? string.Empty));
+                if (!string.IsNullOrWhiteSpace(resolvedName))
+                {
+                    entryName = resolvedName;
+                }
+            }
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                userId = assignment.UserId;
+            }
+            if (string.IsNullOrWhiteSpace(userId))
             {
                 continue;
             }
-
-            LobbySlotState state;
-            if (!lobbySlots.TryGetValue(slotIndex, out state) || !state.HasUser)
+            if (string.IsNullOrWhiteSpace(entryName))
             {
-                continue;
+                entryName = userId;
             }
 
             entries.Add(new ResultEntry
             {
                 slotId = slotId,
+                userId = userId,
                 score = kvp.Value,
-                name = state.Name,
+                name = entryName,
             });
         }
 
-        GameResultRequest payload = new GameResultRequest();
-        payload.startTime = (gameStartTimeUtc ?? DateTime.UtcNow).ToUniversalTime().ToString("o", CultureInfo.InvariantCulture);
-        payload.results = entries.Count > 0 ? entries.ToArray() : Array.Empty<ResultEntry>();
+        GameResultRequest payload = new GameResultRequest
+        {
+            startTime = (gameStartTimeUtc ?? DateTime.UtcNow)
+                .ToUniversalTime()
+                .ToString("o", CultureInfo.InvariantCulture),
+            results = entries.Count > 0 ? entries.ToArray() : Array.Empty<ResultEntry>(),
+        };
+
         return payload;
     }
 
@@ -633,102 +590,8 @@ public class HubGameService : MonoBehaviour
     private class ResultEntry
     {
         public string slotId;
+        public string userId;
         public int score;
         public string name;
-    }
-
-    private struct LobbySlotState
-    {
-        public string UserId;
-        public string Name;
-        public int Personality;
-
-        public bool HasUser
-        {
-            get { return !string.IsNullOrWhiteSpace(UserId); }
-        }
-    }
-
-    private void ApplyLobbyJson(string json)
-    {
-        string normalized = NormalizeLobbyJson(json);
-        LobbyResponse payload = null;
-        try
-        {
-            payload = JsonUtility.FromJson<LobbyResponse>(normalized);
-        }
-        catch
-        {
-            return;
-        }
-
-        if (payload == null || payload.lobby == null)
-        {
-            lobbySlots.Clear();
-            SyncScoreManager();
-            return;
-        }
-
-        UpdateLobbySlotState(1, payload.lobby.s1);
-        UpdateLobbySlotState(2, payload.lobby.s2);
-        UpdateLobbySlotState(3, payload.lobby.s3);
-        UpdateLobbySlotState(4, payload.lobby.s4);
-
-        SyncScoreManager();
-        AssignmentsUpdated?.Invoke();
-    }
-
-    private void UpdateLobbySlotState(int slotIndex, LobbyEntry entry)
-    {
-        if (entry == null || string.IsNullOrWhiteSpace(entry.id))
-        {
-            lobbySlots.Remove(slotIndex);
-            return;
-        }
-
-        lobbySlots[slotIndex] = new LobbySlotState
-        {
-            UserId = entry.id.Trim(),
-            Name = entry.name != null ? entry.name.Trim() : string.Empty,
-            Personality = ParsePersonality(entry.personality),
-        };
-    }
-
-    private static string NormalizeLobbyJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return json;
-        }
-
-        return json
-            .Replace("\"1\":", "\"s1\":")
-            .Replace("\"2\":", "\"s2\":")
-            .Replace("\"3\":", "\"s3\":")
-            .Replace("\"4\":", "\"s4\":");
-    }
-
-    [Serializable]
-    private class LobbyResponse
-    {
-        public string gameId;
-        public LobbySlots lobby;
-    }
-
-    [Serializable]
-    private class LobbySlots
-    {
-        public LobbyEntry s1;
-        public LobbyEntry s2;
-        public LobbyEntry s3;
-        public LobbyEntry s4;
-    }
-
-    [Serializable]
-    private class LobbyEntry
-    {
-        public string id;
-        public string name;
-        public string personality;
     }
 }
