@@ -39,15 +39,60 @@ public class target : MonoBehaviour{
     //ゲームマネージャー
     private GameManager gm;
 
+    //スコアマネージャー
+    private ScoreManager sm;
+
     void Start(){
 
-        /*ここにMBTIの情報を入れる*/
-
         //コンポーネントの取得
+        sm = FindFirstObjectByType<ScoreManager>();
         gm = FindFirstObjectByType<GameManager>();
         audioSource = GetComponent<AudioSource>();
         preX = transform.position.x;
         preY = transform.position.y;
+
+        switch (ptype){
+            case Ptype.Player1:
+                if (sm.user_ID[0] > 0){
+                    bulletSet(sm.personality[0]);
+                }
+                else{
+                    type = TYPE.A;
+                    ptype = Ptype.CPU;
+                }
+                break;
+            case Ptype.Player2:
+                if (sm.user_ID[1] > 0){
+                    bulletSet(sm.personality[1]);
+                }
+                else{
+                    type = TYPE.B;
+                    ptype = Ptype.CPU;
+                }
+                break;
+            case Ptype.Player3:
+                if (sm.user_ID[2] > 0){
+                    bulletSet(sm.personality[2]);
+                }
+                else{
+                    type = TYPE.C;
+                    ptype = Ptype.CPU;
+                }
+                break;
+            case Ptype.Player4:
+                if (sm.user_ID[3] > 0){
+                    bulletSet(sm.personality[3]);
+                }
+                else{
+                    type = TYPE.D;
+                    ptype = Ptype.CPU;
+                }
+                break;
+            //これらは書かない
+            //DebugMode
+            //CPU
+        }
+
     }
 
     
@@ -264,5 +309,17 @@ public class target : MonoBehaviour{
         if ( t == playerFind) {
             playerScore += type==TYPE.D ? s*2 : s;
         }
+    }
+
+    //性格診断の値が引数
+    private void bulletSet(int personal){
+        //if EF(Passionate)
+        //type = TYPE.A;
+        //if ET(Active)
+        //type = TYPE.B
+        //if IF(Calm)
+        //type = TYPE.C
+        //if IT(Thinker)
+        //type = TYPE.D
     }
 }

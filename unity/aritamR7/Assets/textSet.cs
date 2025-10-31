@@ -18,8 +18,6 @@ public class textSet : MonoBehaviour{
     }
 
     void FixedUpdate(){
-        string slotId = "p" + num.ToString();
-        string displayName = HubGameService.GetDisplayName(slotId, "player" + num.ToString());
-        scoreText.text = displayName + "\n" + Pscr.playerScore.ToString();
+        scoreText.text = "player"+ num.ToString() +"\n"+ Pscr.playerScore.ToString();
     }
 }

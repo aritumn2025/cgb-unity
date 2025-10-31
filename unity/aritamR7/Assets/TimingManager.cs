@@ -1,9 +1,9 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class TimingManager : MonoBehaviour
-{
-
+public class TimingManager : MonoBehaviour{
+    
+    private ScoreManager sm;
     public GameObject [] m_scr = new GameObject[4];
     private ScoreText []m_tex = new ScoreText[4];
 
@@ -16,6 +16,7 @@ public class TimingManager : MonoBehaviour
     public int mode = 0;
     void Start(){
         audioSource= GetComponent<AudioSource>();
+        sm = FindFirstObjectByType<ScoreManager>();
         for (int i=0;i<4;i++)
              m_tex[i] = m_scr[i].GetComponent<ScoreText>();
     }
@@ -26,7 +27,7 @@ public class TimingManager : MonoBehaviour
         if (k==4&&wol<=0){
             switch (mode){
                 case 0:
-                    wol = 1.5f;
+                    wol = 1.0f;
                     mode++;
                     break;
                 case 1:
@@ -42,6 +43,8 @@ public class TimingManager : MonoBehaviour
                     mode++;
                     break;
                 case 3:
+                    sm.userOutput();
+                    sm.ScoreReset();
                     SceneManager.LoadScene("Title");
                     break;
             }
