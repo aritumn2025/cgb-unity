@@ -36,7 +36,7 @@ public class TargetHubInputDriver : MonoBehaviour
             return;
         }
 
-        if (!TryResolveControllerId(targetComponent, out string controllerId))
+        if (!TryResolveControllerId(targetComponent.ptype, out string controllerId))
         {
             return;
         }
@@ -78,9 +78,9 @@ public class TargetHubInputDriver : MonoBehaviour
     }
 
     // プレイヤー種別から Hub の ID を解決します。
-    private static bool TryResolveControllerId(target tgt, out string controllerId)
+    public static bool TryResolveControllerId(target.Ptype playerType, out string controllerId)
     {
-        switch (tgt.ptype)
+        switch (playerType)
         {
             case target.Ptype.Player1:
                 controllerId = "p1";

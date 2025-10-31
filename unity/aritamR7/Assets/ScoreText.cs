@@ -27,6 +27,21 @@ public class ScoreText : MonoBehaviour{
         else if (gamescore - pre_score > 80) pre_score+=2;
         else if (gamescore - pre_score >  0) pre_score++;
         waiting = pre_score == gamescore;
-        scoreText.text = "Player - Score :" + pre_score.ToString();
+        scoreText.text = ResolveDisplayName() + " - Score :" + pre_score.ToString();
+    }
+
+    private string ResolveDisplayName()
+    {
+        int slotIndex = playerKind + 1;
+        if (slotIndex < 1)
+        {
+            slotIndex = 1;
+        }
+        else if (slotIndex > 4)
+        {
+            slotIndex = 4;
+        }
+        string slotId = "p" + slotIndex.ToString();
+        return HubGameService.GetDisplayName(slotId, "Player " + slotIndex.ToString());
     }
 }

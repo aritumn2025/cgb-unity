@@ -18,6 +18,9 @@ public class HubGameClient : MonoBehaviour
     // 接続先ハブの URL（環境変数で差し替え可能）です。
     [SerializeField] private string hubUrl = "ws://localhost:8765/ws";
 
+    // HTTP 経由での API 呼び出し用ベース URL です。
+    [SerializeField] private string httpBaseUrl = "http://localhost:8765";
+
     // 再接続間隔を Inspector から調整できるようにするための値です。
     [SerializeField] private float reconnectDelaySeconds = 3f;
 
@@ -25,6 +28,7 @@ public class HubGameClient : MonoBehaviour
     private CancellationTokenSource loopToken;
     private Task loopTask;
     private readonly object taskLock = new();
+    private string apiBaseUrl = "http://localhost:8765";
 
     // ゲーム開始時に自動で常駐オブジェクトを生成するための初期化です。
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -51,11 +55,29 @@ public class HubGameClient : MonoBehaviour
         instance = this;
         DontDestroyOnLoad(gameObject);
 
+        apiBaseUrl = NormalizeHttpBase(httpBaseUrl);
+
         // 実行環境ごとに Hub の場所を変えられるよう環境変数を見に行きます。
         string envUrl = Environment.GetEnvironmentVariable("CGB_HUB_URL");
         if (!string.IsNullOrWhiteSpace(envUrl))
         {
-            hubUrl = envUrl;
+            hubUrl = envUrl.Trim();
+        }
+
+        string envApi = Environment.GetEnvironmentVariable("CGB_HUB_HTTP_URL");
+        if (!string.IsNullOrWhiteSpace(envApi))
+        {
+            apiBaseUrl = NormalizeHttpBase(envApi);
+        }
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            apiBaseUrl = NormalizeHttpBase(DeriveHttpBaseFromHubUrl(hubUrl));
+        }
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            apiBaseUrl = "http://localhost:8765";
         }
     }
 
@@ -287,5 +309,61 @@ public class HubGameClient : MonoBehaviour
         public Vector2 Axes;
         public bool ButtonA;
         public long Timestamp;
+    }
+
+    public static string HttpBaseUrl => instance != null ? instance.apiBaseUrl : "http://localhost:8765";
+
+    private static string NormalizeHttpBase(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        value = value.Trim();
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            return value.TrimEnd('/');
+        }
+
+        var builder = new UriBuilder(uri)
+        {
+            Path = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty,
+        };
+
+        return builder.Uri.ToString().TrimEnd('/');
+    }
+
+    private static string DeriveHttpBaseFromHubUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return string.Empty;
+        }
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return string.Empty;
+        }
+
+        var builder = new UriBuilder(uri)
+        {
+            Path = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty,
+        };
+
+        if (builder.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Scheme = "https";
+        }
+        else if (builder.Scheme.Equals("ws", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Scheme = "http";
+        }
+
+        return builder.Uri.ToString().TrimEnd('/');
     }
 }
