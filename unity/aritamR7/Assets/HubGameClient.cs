@@ -11,15 +11,17 @@ public class HubGameClient : MonoBehaviour
 {
     private readonly ConcurrentDictionary<string, ControllerState> latestStates = new ConcurrentDictionary<string, ControllerState>();
 
-    [SerializeField] private string hubUrl = "ws://localhost:8765/ws";
-    [SerializeField] private string httpBaseUrl = "http://localhost:8765";
+    [SerializeField] private string hubUrl = "wss://game.rayfiyo.com/ws";
+    // [SerializeField] private string hubUrl = "ws://localhost:8765/ws";
+    [SerializeField] private string httpBaseUrl = "https://game.rayfiyo.com";
+    // [SerializeField] private string httpBaseUrl = "http://localhost:8765";
     [SerializeField] private float reconnectDelaySeconds = 3f;
 
     private static HubGameClient instance;
     private CancellationTokenSource loopToken;
     private Task loopTask;
     private readonly object taskLock = new object();
-    private string apiBaseUrl = "http://localhost:8765";
+    private string apiBaseUrl = "https://game.rayfiyo.com";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void EnsureInstance()
@@ -66,7 +68,7 @@ public class HubGameClient : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(apiBaseUrl))
         {
-            apiBaseUrl = "http://localhost:8765";
+            apiBaseUrl = "https://game.rayfiyo.com";
         }
     }
 

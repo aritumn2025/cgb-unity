@@ -87,7 +87,7 @@ public class HubGameService : MonoBehaviour
         string baseUrl = HubGameClient.HttpBaseUrl;
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            baseUrl = "http://localhost:8765";
+            baseUrl = "https://game.rayfiyo.com";
         }
         return baseUrl.TrimEnd('/');
     }
@@ -243,7 +243,7 @@ public class HubGameService : MonoBehaviour
         }
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            baseUrl = "http://localhost:8765";
+            baseUrl = "https://game.rayfiyo.com";
         }
         baseUrl = baseUrl.TrimEnd('/');
 
