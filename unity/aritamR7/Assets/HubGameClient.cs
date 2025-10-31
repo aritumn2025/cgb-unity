@@ -314,7 +314,7 @@ public class HubGameClient : MonoBehaviour
 
     public static string HttpBaseUrl
     {
-        get { return instance != null ? instance.apiBaseUrl : "http://localhost:8765"; }
+        get { return instance != null ? instance.apiBaseUrl : "https://game.rayfiyo.com"; }
     }
 
     private static string NormalizeHttpBase(string value)

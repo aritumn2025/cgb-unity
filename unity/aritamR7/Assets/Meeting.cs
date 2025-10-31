@@ -23,6 +23,34 @@ public class Meeting : MonoBehaviour
         if (Input.GetKey(KeyCode.A)) waitTime -= 0.1f;
         if (Input.GetKey(KeyCode.Z)) waitTime -= 0.1f;
 
+        bool accelerate = false;
+        if (sm != null)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                if (string.IsNullOrEmpty(sm.GetUserId(i)))
+                {
+                    continue;
+                }
+
+                string slotId = "p" + (i + 1);
+                HubGameClient.ControllerState state;
+                if (HubGameClient.TryGetState(slotId, out state))
+                {
+                    if (Mathf.Abs(state.Axes.x) > 0.1f || Mathf.Abs(state.Axes.y) > 0.1f || state.ButtonA)
+                    {
+                        accelerate = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (accelerate)
+        {
+            waitTime -= Time.deltaTime;
+        }
+
         bool allReady = true;
         if (sm != null)
         {

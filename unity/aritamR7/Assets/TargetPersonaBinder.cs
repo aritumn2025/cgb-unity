@@ -35,20 +35,25 @@ public class TargetPersonaBinder : MonoBehaviour
         }
 
         HubGameService.Assignment assignment;
-        if (!HubGameService.TryGetAssignment(slotId, out assignment) || !assignment.HasUser)
+        if (HubGameService.TryGetAssignment(slotId, out assignment) && assignment.HasUser)
         {
-            ResetToDefault();
+            if (assignment.UserId == currentUserId && assignment.Personality == currentPersonality)
+            {
+                return;
+            }
+
+            currentUserId = assignment.UserId;
+            currentPersonality = assignment.Personality;
+            ApplyPersonality(currentPersonality);
             return;
         }
 
-        if (assignment.UserId == currentUserId && assignment.Personality == currentPersonality)
+        if (TryApplyFromScoreManager(slotId))
         {
             return;
         }
 
-        currentUserId = assignment.UserId;
-        currentPersonality = assignment.Personality;
-        ApplyPersonality(currentPersonality);
+        ResetToDefault();
     }
 
     private void ResetToDefault()
@@ -160,5 +165,37 @@ public class TargetPersonaBinder : MonoBehaviour
 
             go.AddComponent<TargetPersonaBinder>();
         }
+    }
+
+    private bool TryApplyFromScoreManager(string slotId)
+    {
+        ScoreManager manager = ScoreManager.instance ?? FindObjectOfType<ScoreManager>();
+        if (manager == null)
+        {
+            return false;
+        }
+
+        int index;
+        if (!int.TryParse(slotId.Substring(1), out index))
+        {
+            return false;
+        }
+        index -= 1;
+        if (index < 0 || index >= 4)
+        {
+            return false;
+        }
+
+        string userId = manager.GetUserId(index);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return false;
+        }
+
+        int persona = manager.personality[index];
+        currentUserId = userId;
+        currentPersonality = persona.ToString(CultureInfo.InvariantCulture);
+        ApplyPersonality(currentPersonality);
+        return true;
     }
 }
