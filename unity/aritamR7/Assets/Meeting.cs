@@ -16,7 +16,8 @@ public class Meeting : MonoBehaviour
 
     void FixedUpdate()
     {
-        waitTime -= Time.deltaTime;
+        float delta = Time.deltaTime;
+        waitTime -= delta;
 
         if (Input.GetKey(KeyCode.Alpha1)) waitTime -= 0.1f;
         if (Input.GetKey(KeyCode.Q)) waitTime -= 0.1f;
@@ -48,7 +49,7 @@ public class Meeting : MonoBehaviour
 
         if (accelerate)
         {
-            waitTime -= Time.deltaTime;
+            waitTime -= delta * 9f;
         }
 
         bool allReady = true;
