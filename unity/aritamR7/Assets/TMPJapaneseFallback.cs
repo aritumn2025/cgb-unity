@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TextCore.LowLevel;
 
 /// <summary>
@@ -53,21 +54,35 @@ public static class TMPJapaneseFallback
         EnsureFallback(runtimeFallback, TMP_Settings.defaultFontAsset);
 
         var fallbackList = TMP_Settings.fallbackFontAssets;
-        if (fallbackList != null && !fallbackList.Contains(runtimeFallback))
+        if (fallbackList == null)
+        {
+            fallbackList = new List<TMP_FontAsset>();
+            TMP_Settings.fallbackFontAssets = fallbackList;
+        }
+
+        if (!fallbackList.Contains(runtimeFallback))
         {
             fallbackList.Add(runtimeFallback);
         }
 
+        PatchAllFonts();
         PatchLoadedTexts();
-        TMP_Text.onTextChanged -= HandleTextChanged;
-        TMP_Text.onTextChanged += HandleTextChanged;
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    private static void HandleTextChanged(UnityEngine.Object obj)
+    private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (obj is TMP_Text text)
+        PatchAllFonts();
+        PatchLoadedTexts();
+    }
+
+    private static void PatchAllFonts()
+    {
+        var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
+        foreach (var font in fonts)
         {
-            ApplyFallback(text.font);
+            ApplyFallback(font);
         }
     }
 
