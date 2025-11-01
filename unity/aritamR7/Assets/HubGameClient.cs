@@ -26,6 +26,8 @@ public class HubGameClient : MonoBehaviour
     private GameStartSignal latestGameStartSignal;
     private int gameStartSignalVersion;
     private int consumedGameStartSignalVersion;
+    private int centerCursorRequestVersion;
+    private int processedCenterCursorRequestVersion;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void EnsureInstance()
@@ -94,6 +96,11 @@ public class HubGameClient : MonoBehaviour
     private void OnApplicationQuit()
     {
         StopLoop();
+    }
+
+    private void Update()
+    {
+        ProcessPendingCursorCenterRequest();
     }
 
     private void StartLoopIfNeeded()
@@ -299,6 +306,13 @@ public class HubGameClient : MonoBehaviour
         if (string.Equals(type, "game_start", StringComparison.OrdinalIgnoreCase))
         {
             HandleGameStartEvent(payload);
+            return;
+        }
+
+        if (string.Equals(type, "center_cursor", StringComparison.OrdinalIgnoreCase))
+        {
+            HandleCenterCursorEvent();
+            return;
         }
     }
 
@@ -323,6 +337,12 @@ public class HubGameClient : MonoBehaviour
         }
 
         Debug.Log("[HubGameClient] received game start event (forced: " + signal.Forced + ", connected: " + signal.Connected + ")");
+    }
+
+    private void HandleCenterCursorEvent()
+    {
+        Interlocked.Increment(ref centerCursorRequestVersion);
+        Debug.Log("[HubGameClient] received center cursor event");
     }
 
     public static bool TryGetState(string controllerId, out ControllerState state)
@@ -357,6 +377,39 @@ public class HubGameClient : MonoBehaviour
             signal = instance.latestGameStartSignal;
             return true;
         }
+    }
+
+    private void ProcessPendingCursorCenterRequest()
+    {
+        int pending = Volatile.Read(ref centerCursorRequestVersion);
+        if (pending == processedCenterCursorRequestVersion)
+        {
+            return;
+        }
+
+        processedCenterCursorRequestVersion = pending;
+        CenterCursorOnMainThread();
+    }
+
+    private void CenterCursorOnMainThread()
+    {
+        CursorLockMode previousLockState = Cursor.lockState;
+        bool previousVisibility = Cursor.visible;
+
+        if (previousLockState == CursorLockMode.Locked)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.lockState = CursorLockMode.Locked;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.lockState = previousLockState;
+        }
+
+        Cursor.visible = previousVisibility;
+
+        Debug.Log("[HubGameClient] centered cursor on request");
     }
 
     [Serializable]
