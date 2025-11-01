@@ -2,23 +2,15 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-/// <summary>
-/// Hub の入力を target コンポーネントへ渡すための補助クラスです。
-/// </summary>
 [DefaultExecutionOrder(-200)]
 [RequireComponent(typeof(target))]
 public class TargetHubInputDriver : MonoBehaviour
 {
-    // target の private メソッドを呼び出すために MethodInfo を保持します。
     private static MethodInfo keySettingsMethod;
-
-    // 初期化処理が重複しないようにするためのフラグです。
     private static bool isBootstrapped;
 
-    // 毎フレームの引数生成を避けるために使い回すバッファです。
     private readonly object[] keyArgs = new object[1];
 
-    // 軸入力の判定に用いる閾値です。
     [SerializeField] private float axisThreshold = 0.3f;
 
     private target targetComponent;
@@ -36,12 +28,14 @@ public class TargetHubInputDriver : MonoBehaviour
             return;
         }
 
-        if (!TryResolveControllerId(targetComponent, out string controllerId))
+        string controllerId;
+        if (!TryResolveControllerId(targetComponent.ptype, out controllerId))
         {
             return;
         }
 
-        if (!HubGameClient.TryGetState(controllerId, out var state))
+        HubGameClient.ControllerState state;
+        if (!HubGameClient.TryGetState(controllerId, out state))
         {
             return;
         }
@@ -70,17 +64,15 @@ public class TargetHubInputDriver : MonoBehaviour
         }
     }
 
-    // target の KeySettings を private のまま利用するためのラッパーです。
     private void InvokeKeySettings(int index)
     {
         keyArgs[0] = index;
         keySettingsMethod.Invoke(targetComponent, keyArgs);
     }
 
-    // プレイヤー種別から Hub の ID を解決します。
-    private static bool TryResolveControllerId(target tgt, out string controllerId)
+    public static bool TryResolveControllerId(target.Ptype playerType, out string controllerId)
     {
-        switch (tgt.ptype)
+        switch (playerType)
         {
             case target.Ptype.Player1:
                 controllerId = "p1";
@@ -100,7 +92,6 @@ public class TargetHubInputDriver : MonoBehaviour
         }
     }
 
-    // 反射を一度だけ準備するためのヘルパーです。
     private static void EnsureKeySettingsMethod()
     {
         if (keySettingsMethod != null)
@@ -116,7 +107,6 @@ public class TargetHubInputDriver : MonoBehaviour
         }
     }
 
-    // ゲームシーンに存在する target へ自動で本スクリプトを付与します。
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void InstallDriver()
     {
@@ -137,7 +127,8 @@ public class TargetHubInputDriver : MonoBehaviour
 
     private static void AttachDriversToTargets()
     {
-        foreach (var tgt in Resources.FindObjectsOfTypeAll<target>())
+        target[] targets = Resources.FindObjectsOfTypeAll<target>();
+        foreach (target tgt in targets)
         {
             if (tgt == null)
             {

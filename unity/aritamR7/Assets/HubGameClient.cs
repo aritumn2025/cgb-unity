@@ -7,26 +7,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-/// <summary>
-/// Hub からの入力をゲーム内に橋渡しする常駐クライアントです。
-/// </summary>
 public class HubGameClient : MonoBehaviour
 {
-    // Hub と常時通信して各プレイヤーの入力を保持するための辞書です。
-    private readonly ConcurrentDictionary<string, ControllerState> latestStates = new();
+    private readonly ConcurrentDictionary<string, ControllerState> latestStates = new ConcurrentDictionary<string, ControllerState>();
 
-    // 接続先ハブの URL（環境変数で差し替え可能）です。
-    [SerializeField] private string hubUrl = "ws://localhost:8765/ws";
-
-    // 再接続間隔を Inspector から調整できるようにするための値です。
+    [SerializeField] private string hubUrl = "wss://game.rayfiyo.com/ws";
+    // [SerializeField] private string hubUrl = "ws://localhost:8765/ws";
+    [SerializeField] private string httpBaseUrl = "https://game.rayfiyo.com";
+    // [SerializeField] private string httpBaseUrl = "http://localhost:8765";
     [SerializeField] private float reconnectDelaySeconds = 3f;
 
     private static HubGameClient instance;
     private CancellationTokenSource loopToken;
     private Task loopTask;
-    private readonly object taskLock = new();
+    private readonly object taskLock = new object();
+    private string apiBaseUrl = "https://game.rayfiyo.com";
 
-    // ゲーム開始時に自動で常駐オブジェクトを生成するための初期化です。
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void EnsureInstance()
     {
@@ -37,7 +33,7 @@ public class HubGameClient : MonoBehaviour
 
         var obj = new GameObject(nameof(HubGameClient));
         instance = obj.AddComponent<HubGameClient>();
-        DontDestroyOnLoad(obj);
+        UnityEngine.Object.DontDestroyOnLoad(obj);
     }
 
     private void Awake()
@@ -51,11 +47,28 @@ public class HubGameClient : MonoBehaviour
         instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // 実行環境ごとに Hub の場所を変えられるよう環境変数を見に行きます。
+        apiBaseUrl = NormalizeHttpBase(httpBaseUrl);
+
         string envUrl = Environment.GetEnvironmentVariable("CGB_HUB_URL");
         if (!string.IsNullOrWhiteSpace(envUrl))
         {
-            hubUrl = envUrl;
+            hubUrl = envUrl.Trim();
+        }
+
+        string envApi = Environment.GetEnvironmentVariable("CGB_HUB_HTTP_URL");
+        if (!string.IsNullOrWhiteSpace(envApi))
+        {
+            apiBaseUrl = NormalizeHttpBase(envApi);
+        }
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            apiBaseUrl = NormalizeHttpBase(DeriveHttpBaseFromHubUrl(hubUrl));
+        }
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            apiBaseUrl = "https://game.rayfiyo.com";
         }
     }
 
@@ -107,17 +120,22 @@ public class HubGameClient : MonoBehaviour
 
         try
         {
-            loopTask?.Wait(TimeSpan.FromSeconds(1));
+            if (loopTask != null)
+            {
+                loopTask.Wait(TimeSpan.FromSeconds(1));
+            }
         }
         catch (AggregateException)
         {
-            // キャンセル時の例外は無視します。
         }
         finally
         {
             lock (taskLock)
             {
-                loopToken?.Dispose();
+                if (loopToken != null)
+                {
+                    loopToken.Dispose();
+                }
                 loopToken = null;
                 loopTask = null;
             }
@@ -128,24 +146,24 @@ public class HubGameClient : MonoBehaviour
     {
         while (!token.IsCancellationRequested)
         {
-            using var socket = new ClientWebSocket();
+            using (var socket = new ClientWebSocket())
+            {
+                try
+                {
+                    await socket.ConnectAsync(new Uri(hubUrl), token);
+                    await SendRegisterAsync(socket, token);
 
-            try
-            {
-                // Hub との接続を試み、成功したら game ロールを登録します。
-                await socket.ConnectAsync(new Uri(hubUrl), token);
-                await SendRegisterAsync(socket, token);
-
-                Debug.Log("[HubGameClient] connected to hub");
-                await ReceiveLoopAsync(socket, token);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[HubGameClient] connection error: {ex.Message}");
+                    Debug.Log("[HubGameClient] connected to hub");
+                    await ReceiveLoopAsync(socket, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("[HubGameClient] connection error: " + ex.Message);
+                }
             }
 
             if (token.IsCancellationRequested)
@@ -173,38 +191,44 @@ public class HubGameClient : MonoBehaviour
     private async Task ReceiveLoopAsync(ClientWebSocket socket, CancellationToken token)
     {
         byte[] buffer = new byte[4096];
-        using MemoryStream stream = new();
-
-        while (!token.IsCancellationRequested && socket.State == WebSocketState.Open)
+        var stream = new MemoryStream();
+        try
         {
-            WebSocketReceiveResult result;
-
-            try
+            while (!token.IsCancellationRequested && socket.State == WebSocketState.Open)
             {
-                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
+                WebSocketReceiveResult result;
+
+                try
+                {
+                    result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", CancellationToken.None);
+                    break;
+                }
+
+                stream.Write(buffer, 0, result.Count);
+
+                if (!result.EndOfMessage)
+                {
+                    continue;
+                }
+
+                string message = Encoding.UTF8.GetString(stream.ToArray());
+                stream.SetLength(0);
+
+                ProcessMessage(message);
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-
-            if (result.MessageType == WebSocketMessageType.Close)
-            {
-                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", CancellationToken.None);
-                break;
-            }
-
-            stream.Write(buffer, 0, result.Count);
-
-            if (!result.EndOfMessage)
-            {
-                continue;
-            }
-
-            string message = Encoding.UTF8.GetString(stream.ToArray());
-            stream.SetLength(0);
-
-            ProcessMessage(message);
+        }
+        finally
+        {
+            stream.Dispose();
         }
     }
 
@@ -231,7 +255,7 @@ public class HubGameClient : MonoBehaviour
             ControllerPayload.Axes axes = payload.axes ?? new ControllerPayload.Axes();
             ControllerPayload.Buttons btn = payload.btn ?? new ControllerPayload.Buttons();
 
-            var state = new ControllerState
+            ControllerState state = new ControllerState
             {
                 Axes = new Vector2(axes.x, axes.y),
                 ButtonA = btn.a,
@@ -242,14 +266,13 @@ public class HubGameClient : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[HubGameClient] failed to parse message: {ex.Message}");
+            Debug.LogWarning("[HubGameClient] failed to parse message: " + ex.Message);
         }
     }
 
-    // target スクリプトから入力状態を取得できるようにするためのアクセサです。
     public static bool TryGetState(string controllerId, out ControllerState state)
     {
-        state = default;
+        state = default(ControllerState);
 
         if (instance == null || string.IsNullOrWhiteSpace(controllerId))
         {
@@ -287,5 +310,61 @@ public class HubGameClient : MonoBehaviour
         public Vector2 Axes;
         public bool ButtonA;
         public long Timestamp;
+    }
+
+    public static string HttpBaseUrl
+    {
+        get { return instance != null ? instance.apiBaseUrl : "https://game.rayfiyo.com"; }
+    }
+
+    private static string NormalizeHttpBase(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        value = value.Trim();
+        Uri uri;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out uri))
+        {
+            return value.TrimEnd('/');
+        }
+
+        var builder = new UriBuilder(uri);
+        builder.Path = string.Empty;
+        builder.Query = string.Empty;
+        builder.Fragment = string.Empty;
+        return builder.Uri.ToString().TrimEnd('/');
+    }
+
+    private static string DeriveHttpBaseFromHubUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return string.Empty;
+        }
+
+        Uri uri;
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out uri))
+        {
+            return string.Empty;
+        }
+
+        var builder = new UriBuilder(uri);
+        builder.Path = string.Empty;
+        builder.Query = string.Empty;
+        builder.Fragment = string.Empty;
+
+        if (builder.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Scheme = "https";
+        }
+        else if (builder.Scheme.Equals("ws", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Scheme = "http";
+        }
+
+        return builder.Uri.ToString().TrimEnd('/');
     }
 }
