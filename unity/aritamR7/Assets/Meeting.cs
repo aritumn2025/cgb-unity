@@ -6,6 +6,7 @@ public class Meeting : MonoBehaviour
 {
     public float waitTime = 99.5f;
     private TMP_Text timeText;
+    private bool forceStartedExternally;
 
     void Start()
     {
@@ -15,6 +16,18 @@ public class Meeting : MonoBehaviour
     void FixedUpdate()
     {
         float delta = Time.deltaTime;
+
+        if (!forceStartedExternally)
+        {
+            HubGameClient.GameStartSignal signal;
+            if (HubGameClient.TryConsumeGameStartSignal(out signal) && signal.Forced)
+            {
+                forceStartedExternally = true;
+                SceneManager.LoadScene("Gamemain");
+                return;
+            }
+        }
+
         waitTime -= delta;
 
         if (Input.GetKey(KeyCode.Alpha1)) waitTime -= 0.1f;

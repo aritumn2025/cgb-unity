@@ -22,6 +22,10 @@ public class HubGameClient : MonoBehaviour
     private Task loopTask;
     private readonly object taskLock = new object();
     private string apiBaseUrl = "https://game.rayfiyo.com";
+    private readonly object signalLock = new object();
+    private GameStartSignal latestGameStartSignal;
+    private int gameStartSignalVersion;
+    private int consumedGameStartSignalVersion;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void EnsureInstance()
@@ -241,6 +245,20 @@ public class HubGameClient : MonoBehaviour
 
         try
         {
+            ServerEventPayload serverEvent = JsonUtility.FromJson<ServerEventPayload>(json);
+            if (serverEvent != null && !string.IsNullOrWhiteSpace(serverEvent.type) && !serverEvent.type.Equals("state", StringComparison.OrdinalIgnoreCase))
+            {
+                HandleServerEvent(serverEvent);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning("[HubGameClient] failed to parse server event: " + ex.Message);
+        }
+
+        try
+        {
             ControllerPayload payload = JsonUtility.FromJson<ControllerPayload>(json);
             if (payload == null || string.IsNullOrWhiteSpace(payload.id))
             {
@@ -270,6 +288,43 @@ public class HubGameClient : MonoBehaviour
         }
     }
 
+    private void HandleServerEvent(ServerEventPayload payload)
+    {
+        if (payload == null)
+        {
+            return;
+        }
+
+        string type = payload.type != null ? payload.type.Trim() : string.Empty;
+        if (string.Equals(type, "game_start", StringComparison.OrdinalIgnoreCase))
+        {
+            HandleGameStartEvent(payload);
+        }
+    }
+
+    private void HandleGameStartEvent(ServerEventPayload payload)
+    {
+        string[] slots = payload.slots ?? Array.Empty<string>();
+        string[] copy = new string[slots.Length];
+        Array.Copy(slots, copy, slots.Length);
+
+        GameStartSignal signal = new GameStartSignal
+        {
+            Forced = payload.forced,
+            Slots = copy,
+            Timestamp = payload.timestamp,
+            Connected = payload.connected,
+        };
+
+        lock (signalLock)
+        {
+            latestGameStartSignal = signal;
+            gameStartSignalVersion++;
+        }
+
+        Debug.Log("[HubGameClient] received game start event (forced: " + signal.Forced + ", connected: " + signal.Connected + ")");
+    }
+
     public static bool TryGetState(string controllerId, out ControllerState state)
     {
         state = default(ControllerState);
@@ -280,6 +335,38 @@ public class HubGameClient : MonoBehaviour
         }
 
         return instance.latestStates.TryGetValue(controllerId, out state);
+    }
+
+    public static bool TryConsumeGameStartSignal(out GameStartSignal signal)
+    {
+        signal = default(GameStartSignal);
+
+        if (instance == null)
+        {
+            return false;
+        }
+
+        lock (instance.signalLock)
+        {
+            if (instance.gameStartSignalVersion == instance.consumedGameStartSignalVersion)
+            {
+                return false;
+            }
+
+            instance.consumedGameStartSignalVersion = instance.gameStartSignalVersion;
+            signal = instance.latestGameStartSignal;
+            return true;
+        }
+    }
+
+    [Serializable]
+    private class ServerEventPayload
+    {
+        public string type;
+        public string[] slots;
+        public bool forced;
+        public long timestamp;
+        public int connected;
     }
 
     [Serializable]
@@ -310,6 +397,14 @@ public class HubGameClient : MonoBehaviour
         public Vector2 Axes;
         public bool ButtonA;
         public long Timestamp;
+    }
+
+    public struct GameStartSignal
+    {
+        public bool Forced;
+        public string[] Slots;
+        public long Timestamp;
+        public int Connected;
     }
 
     public static string HttpBaseUrl
